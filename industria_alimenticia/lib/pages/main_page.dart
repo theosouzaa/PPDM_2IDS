@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:industria_alimenticia/pages/cadastro_page.dart';
 import 'package:industria_alimenticia/pages/home_page.dart';
+import 'package:industria_alimenticia/widgets/app_drawer.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -20,7 +21,7 @@ class _MainPageState extends State<MainPage> {
   ];
 
   // Lista de títulos exibidos na AppBar de acordo com a página.
-  final titulos =[
+  final titulos = [
     'Início',
     'Cadastro'
   ];
@@ -38,6 +39,31 @@ class _MainPageState extends State<MainPage> {
       appBar: AppBar(
         title: Text(titulos[indiceAtual]),
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+
+      // Menu lateral
+      drawer: AppDrawer(),
+
+      // Exibe a página correspondente ao índice selecionado
+      body: paginas[indiceAtual],
+
+      // Barra de menu inferior usada para trocar de página
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: indiceAtual,
+        onTap: selecionarPagina,
+        items: [
+          // Item responsável por abrir página inicial
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Início'
+            ),
+          // Item responsável por abrir página de cadastro
+          BottomNavigationBarItem(
+            icon: Icon(Icons.edit),
+            label: 'Cadastro'
+            ),
+        ],
       ),
     );
   }
