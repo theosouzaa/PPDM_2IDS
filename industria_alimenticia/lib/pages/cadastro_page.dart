@@ -35,7 +35,7 @@ class _CadastroPageState extends State<CadastroPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => JsonPage(
-        // dadosProduto: dadosProduto
+        dadosProduto: dadosProduto
         ),
       ),
     );
@@ -80,6 +80,12 @@ class _CadastroPageState extends State<CadastroPage> {
                 return null;
               },
             ),
+            SizedBox(height: 20),
+            // Botão que valida o for e gerar um formato JSON
+            ElevatedButton(
+              onPressed: enviarFormulario,
+              child: Text('Gerar JSON')
+            )
           ],
         ),
       ),
