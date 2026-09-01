@@ -23,7 +23,7 @@ class _CadastroComponentesPageState extends State<CadastroComponentesPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://127.0.0.1/industria_automotiva_api/public/api/componentes'),
+        Uri.parse('http://127.0.0.1:8000/api/componentes'),
         headers: const {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
