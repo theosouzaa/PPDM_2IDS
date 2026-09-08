@@ -3,227 +3,267 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-class RelatorioFornecedoresPage extends StatefulWidget {
-  const RelatorioFornecedoresPage({super.key});
+class RelatorioFornecedores extends StatefulWidget {
+  const RelatorioFornecedores({super.key});
 
   @override
-  State<RelatorioFornecedoresPage> createState() =>
-      _RelatorioFornecedoresPageState();
+  State<RelatorioFornecedores> createState() => _RelatorioFornecedoresState();
 }
 
-class _RelatorioFornecedoresPageState
-    extends State<RelatorioFornecedoresPage> {
+class _RelatorioFornecedoresState extends State<RelatorioFornecedores> {
   final ScrollController horizontalController = ScrollController();
 
-  // Lista que armazenará os fornecedores retornados pela API.
-  List<dynamic> modelos = [];
+  // Criar uma lista que armazenará os componentes pela API.
+  List<dynamic> componentes = [];
 
-  // Indica se os dados ainda estão sendo carregados.
+  // Indica se os dados ainda estão sendo carregados
+  // Começa como true porque a consulta será feita ao abrir a página
   bool carregando = true;
 
-  // Armazena uma possível mensagem de erro.
+  // Armazena um possível erro
   String? erro;
 
   @override
-  void initState() {
+  // Função que vai executar ao abrir a tela
+  void initState(){
+    // configuração para iniciar a tela
     super.initState();
 
-    // Consulta a API assim que a tela é aberta.
-    consultaFornecedores();
+    // chama a função que faz a consulta na API
+    consultaComponentes();
   }
 
-  // Função responsável por consultar a API.
-  Future<void> consultaFornecedores() async {
-    try {
-      // Faz uma requisição HTTP GET para a API.
+  // Criar a função que faz a busca na API
+  Future<void> consultaComponentes() async {
+    try{
+      // faz uma requisição HTTP do tipo GET para a API.
       final response = await http.get(
-        Uri.parse(
-          'http://127.0.0.1:8000/api/fornecedores',
-        ),
+        // Converte o endereço da API para um objeto URI.
+      Uri.parse('http://127.0.0.1:8000/api/componentes'),
+
+      // Informa à API que o aplicativo espera receber a resposta em JSON
         headers: {
           'Accept': 'application/json',
-        },
+        }
       );
 
-      // Converte o JSON recebido para um objeto Dart.
+      // Converte o texto em JSON para um objeto Dart.
       final resultado = jsonDecode(response.body);
 
-      // Verifica se a requisição foi realizada com sucesso.
-      if (response.statusCode == 200) {
+      // Verifica se a requisição foi concluída com sucesso.
+      if(response.statusCode == 200){
+        // Atualiza o estado da tela com as infirmações
         setState(() {
-          // Armazena os dados retornados pela API.
-          modelos = resultado['data'] ?? [];
+          // Armazenar os dados retornados pela API
+          // Caso seja nulo, deixa a lista vazia.
+          componentes = resultado['data'] ?? [];
 
-          // Finaliza o carregamento.
+          // Parar o loader
           carregando = false;
-
-          // Limpa qualquer erro anterior.
-          erro = null;
         });
       } else {
+        // Se a API retornar erro, exibe este erro na tela
+        // Atualiza o estado da página
         setState(() {
-          erro = resultado['message'] ??
-              'Erro ao consultar fornecedores.';
+          erro = resultado['message'] ?? [];
+
           carregando = false;
         });
       }
-    } catch (e) {
+    }catch(e){
       setState(() {
-        erro = 'Erro ao conectar com a API: $e';
+        erro =  'Erro: $e';
         carregando = false;
       });
     }
   }
 
-  @override
-  void dispose() {
-    horizontalController.dispose();
-    super.dispose();
+  // Função que faz requisição assíncrona para a API mandando o DELETE
+  Future<void> excluirComponente(dynamic idComponente) async {
+    try{
+      final response = await http.delete(
+        Uri.parse('http://127.0.0.1:8000/api/componentes/$idComponente'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      );
+
+      final resultado = response.body.isNotEmpty ?
+      jsonDecode(response.body) : null;
+
+      if (!mounted) return;
+
+      if(response.statusCode == 200){
+        // Exibe uma mensagem mostrando que o registro foi excluido
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Componente excluído com sucesso!'))
+      );
+
+      //Atualizar a lista de componentes após a exclusão
+      await consultaComponentes();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(resultado['message']))
+      );
+      }
+    }catch(e){
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao acessar API: $e'))
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Relatório de Fornecedores'),
+        title: const Text('Relatório de Componentes'),
+        // Adicionar um botão lateral de atualização
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                carregando = true;
+                erro = null;
+              });
+
+              consultaComponentes();
+            },
+            icon: Icon(Icons.refresh)
+          )
+        ],
       ),
-      body: Padding(
+      body:
+      // Verifica se os dados ainda estão sendo carregados
+      // Se sim, exibe o loader
+      carregando
+      ? const Center(child: CircularProgressIndicator())
+      : erro != null ?
+      Center(
+        child: Text(erro!, style: TextStyle(color: Colors.red),),
+        ) :
+      Padding(
         padding: const EdgeInsets.all(24),
-        child: _buildConteudo(),
-      ),
-    );
-  }
-
-  Widget _buildConteudo() {
-    // Exibe carregamento enquanto a API está sendo consultada.
-    if (carregando) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    // Exibe mensagem caso aconteça algum erro.
-    if (erro != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 50,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              erro!,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  carregando = true;
-                  erro = null;
-                });
-
-                consultaFornecedores();
-              },
-              child: const Text('Tentar novamente'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Caso a API não retorne fornecedores.
-    if (modelos.isEmpty) {
-      return const Center(
-        child: Text(
-          'Nenhum fornecedor encontrado.',
-          style: TextStyle(
-            fontSize: 16,
-          ),
-        ),
-      );
-    }
-
-    // Tabela de fornecedores.
-    return Scrollbar(
-      controller: horizontalController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      scrollbarOrientation: ScrollbarOrientation.bottom,
-      child: SingleChildScrollView(
-        controller: horizontalController,
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFE7F0F2),
-          ),
-          border: TableBorder.all(
-            color: const Color(0xFFE0E5E7),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          columns: const [
-            DataColumn(
-              label: Text(
-                'Nome',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+        child: Scrollbar(
+          controller: horizontalController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          scrollbarOrientation: ScrollbarOrientation.bottom,
+          child: SingleChildScrollView(
+            controller: horizontalController,
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(
+                const Color(0xFFE7F0F2),
               ),
-            ),
-            DataColumn(
-              label: Text(
-                'CNPJ',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+              border: TableBorder.all(
+                color: const Color(0xFFE0E5E7),
+                borderRadius: BorderRadius.circular(8),
               ),
-            ),
-            DataColumn(
-              label: Text(
-                'Cidade',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Estado',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-          rows: modelos.map<DataRow>((modelo) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Text(
-                    modelo['NOME']?.toString() ?? '-',
+              columns: const [
+                DataColumn(
+                  label: Text(
+                    'Código',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                DataCell(
-                  Text(
-                    modelo['CNPJ']?.toString() ?? '-',
+                DataColumn(
+                  label: Text(
+                    'Nome',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                DataCell(
-                  Text(
-                    modelo['CIDADE']?.toString() ?? '-',
+                DataColumn(
+                  label: Text(
+                    'Estoque',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                DataCell(
-                  Text(
-                    modelo['ESTADO']?.toString() ?? '-',
+                DataColumn(
+                  label: Text(
+                    'Ações',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
-            );
-          }).toList(),
+              rows: componentes.map<DataRow>((componente){
+                return DataRow(
+                  cells: [
+                    DataCell(
+                     Text(componente['CODIGO'].toString()),
+                    ),
+
+                    DataCell(
+                     Text(componente['NOME'].toString()),
+                    ),
+
+                    DataCell(
+                     Text(componente['ESTOQUE'].toString()),
+                    ),
+
+                    // Nova célula para ações
+                    DataCell(
+                     Row(
+                      children: [
+                        IconButton(
+                        onPressed: () {
+                          // Capturar ID do registro para fazer UPDATE no banco
+                          // final id = componente['ID'];
+                        },
+                        icon: Icon(Icons.edit,
+                        color: Colors.lightBlue.shade900,
+                        )
+                        ),
+                        IconButton(
+                        onPressed: () async {
+                          // Capturar id do registro para fazer DELETE no banco
+                          final id = componente['ID'];
+
+                          // Exibe um diálogo de confirmação antes de excluir
+                          final confirmacao = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text('Excluir componente'),
+                                content: Text('Deseja excluir o componente ${componente['NOME']}?'),
+                                actions: [
+                                  // Botão de cancelamento que fecha o diálogo e retorna false
+                                 TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, false);
+                                  },
+                                  child: Text('Cancelar')
+                                  ),
+                                  // Botão de excluir que fecha o diálogo e retorna true
+                                  TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, true);
+                                  },
+                                  child: Text('Excluir', style: TextStyle(color: Colors.red))
+                                  ),
+                                ],
+                              );
+                            }
+                          );
+
+                          if(confirmacao == true){
+                            await excluirComponente(id);
+                          }
+                        },
+                        icon: Icon(Icons.delete,
+                        color: Colors.red,
+                        )
+                        )
+                      ],
+                     )
+                    ),
+                  ]
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );

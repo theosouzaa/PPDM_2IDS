@@ -77,6 +77,41 @@ class _RelatorioComponentesPageState extends State<RelatorioComponentesPage> {
       });
     }
   }
+
+  // Função que faz requisição assincrona para API mandando o Delete
+  Future<void> excluirComponente(dynamic idComponente) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('http://127.0.0.1:8000/api/modelos/$idComponente'),
+        headers: {
+          'Accept': 'Application/json',
+          'content-Type': 'application;json'
+        }
+      );
+
+      final resultado = response.body.isEmpty ?
+      jsonDecode(response.body) : null;
+
+      if (response.statusCode == 200) {
+        // Exibe uma mensagem informando que o registro foi excluído
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Componente excluído com sucesso'))
+        );
+      // Atualiza a lista de modelos apos a exclusão
+      await consultaComponentes();
+
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resultado['message']))
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao acessar a API: $e'))
+      );
+    }
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -142,6 +177,12 @@ class _RelatorioComponentesPageState extends State<RelatorioComponentesPage> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                DataColumn(
+                  label: Text(
+                    'Ações',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
               rows: componentes.map<DataRow>((componente){
                 return DataRow(
@@ -156,6 +197,58 @@ class _RelatorioComponentesPageState extends State<RelatorioComponentesPage> {
 
                     DataCell(
                      Text(componente['ESTOQUE'].toString()),
+                    ),
+                    // Nova célula para ações
+                    DataCell(
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              // Capturar ID do registro para fazer Update no banco
+                              final id = componente['ID'];
+                            },
+                            icon: Icon(Icons.edit)
+                          ),
+                          IconButton(
+                            onPressed: () async {
+                              // Capturar ID do registro para fazer Delete no banco
+                              final id = componente['ID'];
+
+                              // Exibe um diálogo de confirmação antes de excluir
+                              final confirmacao = await showDialog<bool>(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: Text('Excluir Componente'),
+                                    content:
+                                    Text('Deseja excluir o componente ${componente['NOME']}?'),
+                                    actions: [
+                                      // Botão de cancelar que fecha o diálogo e retorna false
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context, false);
+                                        },
+                                        child: Text('Cancelar')
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context, true);
+                                        },
+                                        child: Text('Excluir')
+                                      ),
+                                    ],
+                                  );
+                                }
+                              );
+
+                              if (confirmacao == true) {
+                                await excluirComponente(id);
+                              }
+                            },
+                            icon: Icon(Icons.delete, color: Colors.red,)
+                          ),
+                        ],
+                      )
                     ),
                   ]
                 );

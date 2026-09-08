@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:industria_automobilistica/pages/relatorio_componentes.dart';
+import 'package:industria_automobilistica/pages/relatorio_fornecedores.dart';
 import 'login.dart';
 import 'pages/cadastro_componentes.dart';
 import 'pages/cadastro_fornecedores.dart';
 import 'pages/cadastro_modelos.dart';
-import 'pages/relatorio_componentes.dart';
-import 'pages/relatorio_fornecedores.dart';
 import 'pages/relatorio_modelos.dart';
 import 'pages/relatorio_geral.dart';
 
@@ -50,7 +50,7 @@ class HomePage extends StatelessWidget {
       HomeOption(
         title: 'Fornecedores',
         icon: Icons.local_shipping_outlined,
-        page: (_) => const RelatorioFornecedoresPage(),
+        page: (_) => const RelatorioFornecedores(),
       ),
       HomeOption(
         title: 'Relatório geral',

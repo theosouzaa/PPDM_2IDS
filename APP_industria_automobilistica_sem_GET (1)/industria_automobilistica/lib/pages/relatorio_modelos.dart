@@ -77,6 +77,41 @@ class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
     }
   }
 
+  // Função que faz requisição assincrona para API mandando o Delete
+  Future<void> excluirModelo(dynamic idModelo) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('http://127.0.0.1:8000/api/modelos/$idModelo'),
+        headers: {
+          'Accept': 'application/json',
+          'content-Type': 'application/json'
+        }
+      );
+
+      final resultado = response.body.isEmpty ?
+      jsonDecode(response.body) : null;
+
+      if (response.statusCode == 200) {
+        // Exibe uma mensagem informando que o registro foi excluído
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Modelo excluído com sucesso'))
+        );
+
+        // Atualizar a lista de modelos apos a exclusão
+        await consultaModelos();
+        
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resultado['message']))
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao acessar a API: $e'))
+      );
+    }
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -147,6 +182,12 @@ class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                DataColumn(
+                  label: Text(
+                    'Ações',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
               rows: modelos.map<DataRow>((modelo){
                 final ativo = modelo['ATIVO'].toString();
@@ -164,6 +205,58 @@ class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
                     ),
                     DataCell(
                       Text(ativo == '1' ? 'Sim' : 'Não'),
+                    ),
+                    // Nova célula para ações
+                    DataCell(
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              // Capturar ID do registro para fazer Update no banco
+                              final id = modelo['ID'];
+                            },
+                            icon: Icon(Icons.edit)
+                          ),
+                          IconButton(
+                            onPressed: () async {
+                              // Capturar ID do registro para fazer Delete no banco
+                              final id = modelo['ID'];
+
+                              // Exibe um diálogo de confirmação antes de excluir
+                              final confirmacao = await showDialog<bool>(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: Text('Excluir Modelo'),
+                                    content:
+                                    Text('Deseja excluir o modelo ${modelo['NOME']}?'),
+                                    actions: [
+                                      // Botão de cancelar que fecha o diálogo e retorna false
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context, false);
+                                        },
+                                        child: Text('Cancelar')
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context, true);
+                                        },
+                                        child: Text('Excluir')
+                                      ),
+                                    ],
+                                  );
+                                }
+                              );
+
+                              if (confirmacao == true) {
+                                await excluirModelo(id);
+                              }
+                            },
+                            icon: Icon(Icons.delete, color: Colors.red,)
+                          ),
+                        ],
+                      )
                     ),
                   ]
                 );
