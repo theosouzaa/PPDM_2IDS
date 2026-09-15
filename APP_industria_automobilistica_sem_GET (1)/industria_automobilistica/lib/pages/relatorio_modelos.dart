@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:industria_automobilistica/pages/editar_modelos.dart';
 
 class RelatorioModelosPage extends StatefulWidget {
   const RelatorioModelosPage({super.key});
@@ -13,11 +14,11 @@ class RelatorioModelosPage extends StatefulWidget {
 class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
   final ScrollController horizontalController = ScrollController();
 
-  // Cria uma lista que armanezará os modelos pela API
-  List<dynamic> modelos = []; 
+  // Criar uma lista que armazenará os modelos pela API.
+  List<dynamic> modelos = [];
 
-  // indica se os dados ainda estão sendo carregados.
-  // Começa com true porque a consulta será feita ao abrir a pág
+  // Indica se os dados ainda estão sendo carregados
+  // Começa como true porque a consulta será feita ao abrir a página
   bool carregando = true;
 
   // Armazena um possível erro
@@ -25,120 +26,126 @@ class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
 
   @override
   // Função que vai executar ao abrir a tela
-  void initState() {
-    // Configuração para iniciar a tela
+  void initState(){
+    // configuração para iniciar a tela
     super.initState();
 
-    // Chama a função que chgama na API
+    // chama a função que faz a consulta na API
     consultaModelos();
   }
 
-  // Cria a função que faz a busca na API
+  // Criar a função que faz a busca na API
   Future<void> consultaModelos() async {
-    try {
-      // Faz uma requisição HTTP do tipo GET para API.
-      final response = await http.get(
-        // Converte o endereço da API para um objeto URI;
-        Uri.parse('http://127.0.0.1:8000/api/modelos'),
+    // Reinicia o estado antes de cada consulta (usado também pelo botão de refresh)
+    setState(() {
+      carregando = true;
+      erro = null;
+    });
 
-        // Informa à API que o aplicativo espera receber a resposta em JSON
+    try{
+      // faz uma requisição HTTP do tipo GET para a API.
+      final response = await http.get(
+        // Converte o endereço da API para um objeto URI.
+      Uri.parse('http://127.0.0.1:8000/api/modelos'),
+
+      // Informa à API que o aplicativo espera receber a resposta em JSON
         headers: {
           'Accept': 'application/json',
         }
       );
 
-      // converte o texto JSON para um objeto Dart.
+      // Converte o texto em JSON para um objeto Dart.
       final resultado = jsonDecode(response.body);
 
       // Verifica se a requisição foi concluída com sucesso.
-      if (response.statusCode == 200) {
-        // Atualiza o estado da tela.
+      if(response.statusCode == 200){
+        // Atualiza o estado da tela com as infirmações
         setState(() {
           // Armazenar os dados retornados pela API
-          // Caso seja nulo, deixo a lista vazia
+          // Caso seja nulo, deixo a lista vazia.
           modelos = resultado['data'] ?? [];
 
           // Parar o loader
           carregando = false;
         });
       } else {
-        // Se API retornar erro, exibir erro na tela
+        // Se a API retornar erro, exibe este erro na tela
+        // Atualiza o estado da página
         setState(() {
-          erro = resultado['message'] ?? [];
+          erro = resultado['message']?.toString() ?? 'Erro ao carregar os modelos';
 
           carregando = false;
         });
       }
-    } catch (e) {
+    }catch(e){
       setState(() {
-        erro = 'Erro: $e';
+        erro =  'Erro: $e';
         carregando = false;
       });
     }
   }
 
-  // Função que faz requisição assincrona para API mandando o Delete
+  // Função que faz requisição assíncrona para a API mandando o DELETE
   Future<void> excluirModelo(dynamic idModelo) async {
-    try {
+    try{
       final response = await http.delete(
         Uri.parse('http://127.0.0.1:8000/api/modelos/$idModelo'),
         headers: {
           'Accept': 'application/json',
-          'content-Type': 'application/json'
+          'Content-Type': 'application/json'
         }
       );
 
-      final resultado = response.body.isEmpty ?
+      final resultado = response.body.isNotEmpty ?
       jsonDecode(response.body) : null;
 
-      if (response.statusCode == 200) {
-        // Exibe uma mensagem informando que o registro foi excluído
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Modelo excluído com sucesso'))
-        );
+      if (!mounted) return;
 
-        // Atualizar a lista de modelos apos a exclusão
-        await consultaModelos();
-        
+      if(response.statusCode == 200){
+        // Exibe uma mensagem mostrando que o registro foi excluido
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Modelo excluído com sucesso!'))
+      );
+
+      //Atualizar a listade modelos após a exclusão
+      await consultaModelos();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(resultado['message']))
-        );
+        SnackBar(content: Text(resultado['message']))
+      );
       }
-    } catch (e) {
+    }catch(e){
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao acessar a API: $e'))
+        SnackBar(content: Text('Erro ao acessar API: $e'))
       );
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Relatório de Modelos'),
-        // Adicionar um botão lateral de atualizção
+        // Adicionar um botão lateral de atualização
         actions: [
           IconButton(
-            onPressed: () {
-              setState(() {
-                carregando = true;
-                erro = null;
-              });
-
-              consultaModelos();
-            }, 
-            icon: Icon(Icons.refresh)
-          )
+            tooltip: 'Atualizar',
+            // Desabilita o botão enquanto uma consulta já está em andamento
+            onPressed: carregando ? null : consultaModelos,
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: 
-      // Verifica se os dados ainda estão senco carregados. Se sim exibe o loader
-      carregando
+      // Verifica se os dados ainda estão sendo carregados 
+      // Se sim, exibe o loader
+      carregando 
       ? const Center(child: CircularProgressIndicator())
       : erro != null ?
       Center(
         child: Text(erro!, style: TextStyle(color: Colors.red),),
-      ) :
+        ) :
       Padding(
         padding: const EdgeInsets.all(24),
         child: Scrollbar(
@@ -195,68 +202,85 @@ class _RelatorioModelosPageState extends State<RelatorioModelosPage> {
                 return DataRow(
                   cells: [
                     DataCell(
-                      Text(modelo['NOME'].toString()),
+                     Text(modelo['NOME'].toString()),
                     ),
+
                     DataCell(
-                      Text(modelo['CATEGORIA'].toString()),
+                     Text(modelo['CATEGORIA'].toString()),
                     ),
+
                     DataCell(
-                      Text(modelo['ANO_MODELO'].toString()),
+                     Text(modelo['ANO_MODELO'].toString()),
                     ),
+
                     DataCell(
-                      Text(ativo == '1' ? 'Sim' : 'Não'),
+                     Text(ativo == '1' ? 'Sim': 'Não'),
                     ),
+
                     // Nova célula para ações
                     DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              // Capturar ID do registro para fazer Update no banco
-                              final id = modelo['ID'];
-                            },
-                            icon: Icon(Icons.edit)
-                          ),
-                          IconButton(
-                            onPressed: () async {
-                              // Capturar ID do registro para fazer Delete no banco
-                              final id = modelo['ID'];
+                     Row(
+                      children: [
+                        IconButton(
+                        onPressed: () async {
+                          final atualizado = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) =>
+                              EditarModeloPage(modelo: 
+                              Map<String, dynamic>.from(modelo))
+                            )
+                          );
 
-                              // Exibe um diálogo de confirmação antes de excluir
-                              final confirmacao = await showDialog<bool>(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: Text('Excluir Modelo'),
-                                    content:
-                                    Text('Deseja excluir o modelo ${modelo['NOME']}?'),
-                                    actions: [
-                                      // Botão de cancelar que fecha o diálogo e retorna false
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(context, false);
-                                        },
-                                        child: Text('Cancelar')
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(context, true);
-                                        },
-                                        child: Text('Excluir')
-                                      ),
-                                    ],
-                                  );
-                                }
+                          if(atualizado == true){
+                            await consultaModelos();
+                          }
+                        },
+                        icon: Icon(Icons.edit,
+                        color: Colors.lightBlue.shade900,
+                        )
+                        ),
+                        IconButton(
+                        onPressed: () async {
+                          // Capturar id do registro para fazer DELETE no banco
+                          final id = modelo['ID'];
+
+                          // Exibe um diálogo de confirmação antes de excluir 
+                          final confirmacao = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text('Excluir modelo'),
+                                content: Text('Deseja excluir o ${modelo['NOME']}?'),
+                                actions: [
+                                  // Botão de cancelamento que fecha o diálogo e retorna false
+                                 TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, false);
+                                  }, 
+                                  child: Text('Cancelar')
+                                  ),
+                                  // Botão de excluir que fecha o diálogo e retorna true
+                                  TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, true);
+                                  },
+                                  child: Text('Excluir', style: TextStyle(color: Colors.red))
+                                  ),
+                                ],
                               );
+                            }
+                          );
 
-                              if (confirmacao == true) {
-                                await excluirModelo(id);
-                              }
-                            },
-                            icon: Icon(Icons.delete, color: Colors.red,)
-                          ),
-                        ],
-                      )
+                          if(confirmacao == true){
+                            await excluirModelo(id);
+                          }
+                        },
+                        icon: Icon(Icons.delete,
+                        color: Colors.red,
+                        )
+                        )
+                      ],
+                     )
                     ),
                   ]
                 );
