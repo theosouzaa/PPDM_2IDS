@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:industria_automobilistica/home.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -9,17 +11,68 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final formKey = GlobalKey<FormState>();
+
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool hidePassword = true;
 
-  void login() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const HomePage(),
-      ),
-    );
+  bool entrando = false;
+
+  Future<void> login() async {
+    if (!formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      entrando = true;
+    });
+
+    final dadosLogin = {
+      'email': emailController.text.trim(),
+      'senha': passwordController.text
+    };
+
+    try {
+      // Fazer a requisoção http
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/login'),
+        headers: {
+          // Cabeçalhos de requisição
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode(dadosLogin)
+      );
+
+      final resultado = response.body.isEmpty ?
+      jsonDecode(response.body) : <String, dynamic>{};
+
+      if (response.statusCode == 200 &&
+        resultado['sucesso'] == true) {
+          Navigator.pushReplacement(context,
+            MaterialPageRoute(
+              builder: (_) => const HomePage()
+            )
+          );
+      }else{
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content:
+          Text('E-mail ou senha inválidos'),
+          backgroundColor: Colors.red)
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao acessar api: $e')
+        )
+      );
+    }finally {
+      setState(() {
+        entrando = false;
+      });
+    }
   }
   @override
   Widget build(BuildContext context) {
@@ -42,7 +95,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ],
               ),
-              child: Column(
+              child: Form(
+              key: formKey,
+              child: 
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Icon(
@@ -68,18 +124,39 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(color: Color(0xFF78909C)),
                   ),
                   const SizedBox(height: 32),
-                  TextField(
+                  TextFormField(
                     controller: emailController,
                     decoration: const InputDecoration(
                       labelText: 'E-mail',
                       prefixIcon: Icon(Icons.person_outline),
                       border: OutlineInputBorder(),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Informe o e-mail';
+                      }
+
+                      if (!value.contains('@')) {
+                        return 'Informe um e-mail válido';
+                      }
+
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  TextFormField(
                     controller: passwordController,
                     obscureText: hidePassword,
+                    onFieldSubmitted: (_) {
+                      if (!entrando) {
+                        login();
+                      }
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Infome a sua senha';
+                      }
+                    },
                     decoration: InputDecoration(
                       labelText: 'Senha',
                       prefixIcon: const Icon(Icons.lock_outline),
@@ -123,6 +200,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
+              ),
               ),
             ),
           ),
